@@ -10,28 +10,19 @@ const socket = io("http://localhost:3500");
 
 function App() {
 	const [dbChange, setDbChange] = useState(false);
-	const [isConnected, setIsConnected] = useState(socket.connected);
-	//const [lastPong, setLastPong] = useState(null);
 
 	const [data, setData] = useState([]);
-	const [content, setcontent] = useState();
+
 	useEffect(() => {
 		fetch("https://iotserver.vercel.app/api/sensor")
 			.then((res) => res.json())
 			.then((data) => setData(data.data));
 
 		socket.on("newData", (newData) => {
-			setIsConnected(true);
 			console.log(newData);
 			setDbChange(!dbChange);
 		});
 
-		socket.on("disconnect", () => {
-			setIsConnected(false);
-		});
-		socket.on("message", (data) => {
-			setcontent(data);
-		});
 		// socket.on("pong", () => {
 		// 	setLastPong(new Date().toISOString());
 		// });
@@ -57,7 +48,7 @@ function App() {
 					rel="noopener noreferrer">
 					{data.length}
 				</a>
-				<p>{content}</p>
+
 				<button>Click</button>
 			</header>
 		</div>
