@@ -1,57 +1,68 @@
-import { useEffect, useState } from "react";
-import logo from "./logo.svg";
+//jshint esversion:9
 import "./App.css";
 import io from "socket.io-client";
+import Home from "./pages/Home";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import MinerPage from "./pages/MinerPage";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import Login from "./pages/Login";
+//import Header from "./pages/Header";
 
-const socket = io("http://localhost:3500");
-// const sendMessage = () => {
-// 	socket.emit("cool", "It works");
-// };
+const socket = io("http://colorful-suspenders-cow.cyclic.app/api/sensor", {
+	withCredentials: true,
+	extraHeaders: {
+		"my-custom-header": "abcd",
+	},
+	secure: true,
+	reconnect: true,
+	rejectUnauthorized: false,
+});
+console.log(socket);
+function customizeDateOnData(data) {
+	data = data.map((miner) => {
+		miner.createdAt = new Date(miner.createdAt).toLocaleTimeString([], {
+			timeStyle: "short",
+		});
+		return miner;
+	});
+	return data;
+}
+// function customizeDate(data) {
+// 	data.createdAt = new Date(data.createdAt).toLocaleTimeString();
+// 	return data;
+// }
 
 function App() {
-	const [dbChange, setDbChange] = useState(false);
-
 	const [data, setData] = useState([]);
+	const [updated, setUpdated] = useState(false);
 
 	useEffect(() => {
-		fetch("https://iotserver.vercel.app/api/sensor")
-			.then((res) => res.json())
-			.then((data) => setData(data.data));
-
-		socket.on("newData", (newData) => {
-			console.log(newData);
-			setDbChange(!dbChange);
+		const getData = async () => {
+			let res = await axios.get(
+				"https://colorful-suspenders-cow.cyclic.app/api/sensor"
+			);
+			let miners = res.data.data;
+			miners = customizeDateOnData(miners);
+			setData(miners);
+		};
+		getData();
+		socket.on("newData", () => {
+			// newData = customizeDate(newData);
+			setUpdated(!updated);
+			// setData([...data, newData]);
 		});
-
-		// socket.on("pong", () => {
-		// 	setLastPong(new Date().toISOString());
-		// });
-
-		// return () => {
-		// 	socket.off("connect");
-		// 	socket.off("disconnect");
-		// 	socket.off("pong");
-		// };
-	}, [dbChange]);
-
+	}, [updated]);
+	//console.log();
 	return (
-		<div className="App">
-			<header className="App-header">
-				<img src={logo} className="App-logo" alt="logo" />
-				<p>
-					Edit <code>src/App.js</code> and save to reload.
-				</p>
-				<a
-					className="App-link"
-					href="https://reactjs.org"
-					target="_blank"
-					rel="noopener noreferrer">
-					{data.length}
-				</a>
+		<Router>
+			<Routes>
+				<Route path="/" element={<Home />}></Route>
+				<Route path="/user/miner" element={<MinerPage data={data} />} />
 
-				<button>Click</button>
-			</header>
-		</div>
+				<Route path="/login" element={<Login />} />
+			</Routes>
+		</Router>
 	);
 }
 
