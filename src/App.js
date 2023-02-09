@@ -1,41 +1,37 @@
 //jshint esversion:9
+import { useState, useEffect, lazy, Suspense } from "react";
 import "./App.css";
-import io from "socket.io-client";
+import * as Realm from "realm-web";
 import Home from "./pages/Home";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import MinerPage from "./pages/MinerPage";
-import { useState, useEffect } from "react";
 import axios from "axios";
-import Login from "./pages/Login";
-//import Header from "./pages/Header";
+import PageLoading from "./pages/PageLoading";
 
-const socket = io("http://colorful-suspenders-cow.cyclic.app/api/sensor", {
-	withCredentials: true,
-	extraHeaders: {
-		"my-custom-header": "abcd",
-	},
-	secure: true,
-	reconnect: true,
-	rejectUnauthorized: false,
-});
-console.log(socket);
+const MinerPage = lazy(() => import("./pages/MinerPage"));
+
+//import Login from "./pages/Login";
+
+const app = new Realm.App({ id: "iot-xazym" });
+
 function customizeDateOnData(data) {
 	data = data.map((miner) => {
-		miner.createdAt = new Date(miner.createdAt).toLocaleTimeString([], {
-			timeStyle: "short",
-		});
+		miner.createdAt = new Date(miner.createdAt);
 		return miner;
 	});
 	return data;
 }
-// function customizeDate(data) {
-// 	data.createdAt = new Date(data.createdAt).toLocaleTimeString();
-// 	return data;
-// }
+function customizeDate(data) {
+	data.createdAt = new Date(data.createdAt).toLocaleTimeString([], {
+		timeStyle: "short",
+	});
+	return data;
+}
 
 function App() {
 	const [data, setData] = useState([]);
-	const [updated, setUpdated] = useState(false);
+	//const [updated, setUpdated] = useState(false);
+	const [user, setUser] = useState();
+	const [events, setEvents] = useState([]);
 
 	useEffect(() => {
 		const getData = async () => {
@@ -46,24 +42,75 @@ function App() {
 			miners = customizeDateOnData(miners);
 			setData(miners);
 		};
-		getData();
-		socket.on("newData", () => {
-			// newData = customizeDate(newData);
-			setUpdated(!updated);
-			// setData([...data, newData]);
-		});
-	}, [updated]);
-	//console.log();
-	return (
-		<Router>
-			<Routes>
-				<Route path="/" element={<Home />}></Route>
-				<Route path="/user/miner" element={<MinerPage data={data} />} />
 
-				<Route path="/login" element={<Login />} />
-			</Routes>
-		</Router>
+		getData();
+
+		const login = async () => {
+			// Authenticate anonymously
+			const user = await app.logIn(Realm.Credentials.anonymous());
+			setUser(user); // Connect to the database
+
+			const mongodb = app.currentUser.mongoClient("mongodb-atlas");
+			const collection = mongodb.db("iot").collection("sensordatas"); // Everytime a change happens in the stream, add it to the list of events
+
+			for await (const change of collection.watch()) {
+				setEvents((events) => [...events, change]);
+				let newData = JSON.stringify(events[events.length].fullDocument);
+				newData = customizeDate(newData);
+				setData((data) => [...data, newData]);
+			}
+		};
+		login();
+	}, [events]);
+
+	return (
+		<div className="App">
+			{!!user && (
+				<Router>
+					<Routes>
+						<Route
+							path="/"
+							element={
+								<Suspense fallback={<PageLoading />}>
+									<Home />
+								</Suspense>
+							}></Route>
+						<Route
+							path="/user/miner/*"
+							element={
+								<Suspense fallback={<PageLoading />}>
+									<MinerPage data={data} />
+								</Suspense>
+							}></Route>
+					</Routes>
+				</Router>
+			)}
+		</div>
 	);
 }
 
 export default App;
+
+// <div>
+// 					// 	<p>Latest events:</p>
+
+// 					// 	<table>
+// 					// 		<thead>
+// 					// 			<tr>
+// 					// 				<td>Operation</td>
+// 					// 				<td>Document Key</td>
+// 					// 				<td>Full Document</td>
+// 					// 			</tr>
+// 					// 		</thead>
+
+// 					// 		<tbody>
+// 					// 			{events.map((e, i) => (
+// 					// 				<tr key={i}>
+// 					// 					<td>{e.operationType}</td>
+// 					// 					<td>{e.documentKey._id.toString()}</td>
+// 					// 					<td>{JSON.stringify(e.fullDocument)}</td>
+// 					// 				</tr>
+// 					// 			))}
+// 					// 		</tbody>
+// 					// 	</table>
+// 					// </div>

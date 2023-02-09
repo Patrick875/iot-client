@@ -6,7 +6,7 @@ function MinerCard({ description }) {
 		<div className="col-xl-3 col-sm-6 mb-5 mx-2">
 			<Link
 				className="bg-white rounded shadow py-5 px-4 d-block text-decoration-none"
-				to={description}>
+				to="/user/miner">
 				<img
 					src="https://bootstrapious.com/i/snippets/sn-team/teacher-2.jpg"
 					alt=""

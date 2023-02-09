@@ -10,7 +10,6 @@ import {
 } from "recharts";
 
 function Humidity({ graphData }) {
-	console.log(graphData);
 	return (
 		<div style={{ width: "100%", height: 300, marginTop: "2em" }}>
 			<p className="text-center p-2 my-2">Humidity</p>
